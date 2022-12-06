@@ -98,9 +98,32 @@ is.factor(data4$Measure.Name)
 data4
 
 
-boxplot( Number.of.Readmissions~ Measure.Name, data= data4,
-        main=" Boxplot of condition vs number of readmission",
-        xlab= "condition", ylab="number of readmission", col=rainbow(6),ylim=c(0,300))
+library(ggplot2)
+data4 %>%
+  ggplot(aes(x=Measure.Name, y= Number.of.Readmissions, fill=Measure.Name)) +
+    geom_boxplot(
+  mapping = NULL,
+  data = NULL,
+  stat = "boxplot",
+  position = "dodge2",
+  outlier.colour = NULL,
+  outlier.color = NULL,
+  outlier.fill = NULL,
+  outlier.shape = 10,
+  outlier.size = 0.5,
+  outlier.stroke = 0.5,
+  outlier.alpha = NULL,
+  notch = FALSE,
+  notchwidth = 0.5,
+  varwidth = FALSE,
+  na.rm = FALSE,
+  orientation = NA,
+  show.legend = NA,
+  inherit.aes = TRUE
+)+ ylim(0,400)+ theme_classic()+ scale_x_discrete(labels=c('AMI', 'CABG', 'COPD', 'HF', 'HIP-KNEE','PN'))+
+theme(
+      legend.position= "none",axis.text.x= element_text(angle=90),
+      plot.title= element_text(size=11)) + ggtitle("Boxplot of condition vs number of readmission") +xlab("Condition")+ylab("Number of Readmission")
 ```
 
 
