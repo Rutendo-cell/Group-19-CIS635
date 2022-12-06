@@ -1,0 +1,298 @@
+---
+title: "Project"
+author: "Marwah Talbeh"
+date: "2022-11-15"
+output: pdf_document
+---
+
+ 
+library(tidyverse)
+  
+
+ 
+data <- read.csv("readmission.csv", header = TRUE, sep = ",")
+dim(data)
+  
+
+ 
+colnames(data)
+  
+
+ 
+new_data <- subset(data, select = -c(6))
+  
+
+ 
+colnames(new_data)
+  
+## we are trying to remove all the null values in our data
+ 
+new_data$Number.of.Discharges<-replace(new_data$Number.of.Discharges,new_data$Number.of.Discharges=="N/A","NA")
+
+new_data$Predicted.Readmission.Rate<-replace(new_data$Predicted.Readmission.Rate,new_data$Predicted.Readmission.Rate=="N/A","NA")
+
+new_data$Expected.Readmission.Rate<-replace(new_data$Expected.Readmission.Rate,new_data$Expected.Readmission.Rate=="N/A","NA")
+
+new_data$Number.of.Readmissions<-replace(new_data$Number.of.Readmissions,new_data$Number.of.Readmissions=="N/A","NA")
+
+  
+
+
+ 
+data1 <- subset(new_data, Number.of.Discharges != "NA")
+data2 <- subset(data1, Predicted.Readmission.Rate != "NA")
+data3 <- subset(data2, Expected.Readmission.Rate != "NA")
+data4 <- subset(data3, Number.of.Readmissions != "NA")
+data5 <-  subset(data4, Number.of.Readmissions != "Too Few to Report")
+dim(data5)
+data5
+  
+ 
+## Now we will change the medical condition names into a numerical value, so that it would be easier to use when performing our analysis.
+ 
+data5$Measure.Name<-replace(data5$Measure.Name,data5$Measure.Name=="READM-30-HIP-KNEE-HRRP","128")
+
+
+data5$Measure.Name<-replace(data5$Measure.Name,data5$Measure.Name=="READM-30-CABG-HRRP","111")
+
+data5$Measure.Name<-replace(data5$Measure.Name,data5$Measure.Name=="READM-30-AMI-HRRP","167")
+
+data5$Measure.Name<-replace(data5$Measure.Name,data5$Measure.Name=="READM-30-HF-HRRP","342")
+
+data5$Measure.Name<-replace(data5$Measure.Name,data5$Measure.Name=="READM-30-COPD-HRRP","228")
+
+data5$Measure.Name<-replace(data5$Measure.Name,data5$Measure.Name=="READM-30-PN-HRRP","059")
+
+data5
+
+  
+
+## group the conditions by state
+
+ 
+data4$Number.of.Readmissions = as.numeric(data4$Number.of.Readmissions)
+is.numeric(data4$Number.of.Readmissions)
+data4$Number.of.Discharges = as.numeric(data4$Number.of.Discharges)
+is.numeric(data4$Number.of.Discharges)
+data4
+
+  
+
+ 
+library(dplyr)
+
+data4 %>%
+  group_by(State, Measure.Name) %>%
+  summarise(Readmission_sum=sum(Number.of.Readmissions))
+  
+
+
+
+## statistical analysis
+
+
+ 
+
+data4$Measure.Name = as.factor(data4$Measure.Name)
+is.factor(data4$Measure.Name)
+data4
+
+
+boxplot( Number.of.Readmissions~ Measure.Name, data= data4,
+        main=" Boxplot of condition vs number of readmission",
+        xlab= "condition", ylab="number of readmission", col=rainbow(6),ylim=c(0,300))
+  
+
+
+ 
+kruskal.test(Number.of.Readmissions ~ Measure.Name, data= data4)
+  
+
+ 
+tapply(data4$Number.of.Readmissions, data4$Measure.Name, median, na.rm=TRUE)
+  
+
+Ho: Median(AMI) = Median(CABG) = Median(COPD) = Median(HF) = Median(HIP) = Median(PN)
+
+#Ha: At least one group median differs
+
+#Test statistic: chi-squared = 2094.2
+
+#P-value: 2.2 * 10^-16
+
+#Conclusion(at the 0.05 alpha level): Reject Ho in favor of Ha. There is sufficient evidence to conclude that at least one group median differs.
+ 
+ 
+pairwise.wilcox.test(data4$Number.of.Readmissions, data4$Measure.Name, p.adjust.method="bonferroni")
+  
+
+#It looks like there is significant difference across all groups.
+
+
+ 
+install.packages("mltools")
+library(mltools)
+library(data.table)
+  
+
+# uding one-hot encoding method to dummify the categorical variable into binary numeric variables.
+# here is the link to this method : https://datatricks.co.uk/one-hot-encoding-in-r-three-simple-methods
+ 
+newdata <- one_hot(as.data.table(data4))
+newdata
+  
+
+
+ 
+library(modelr)
+library(rpart)
+install.packages('rpart.plot')
+library(rpart.plot)
+  
+
+
+# changing categorical variables into factors.
+ 
+newdata$`Measure.Name_READM-30-AMI-HRRP` <- as.factor(newdata$`Measure.Name_READM-30-AMI-HRRP`)
+
+newdata$`Measure.Name_READM-30-PN-HRRP` <- as.factor(newdata$`Measure.Name_READM-30-PN-HRRP`)
+
+newdata$`Measure.Name_READM-30-COPD-HRRP` <- as.factor(newdata$`Measure.Name_READM-30-COPD-HRRP`)
+
+newdata$`Measure.Name_READM-30-HIP-KNEE-HRRP` <- as.factor(newdata$`Measure.Name_READM-30-HIP-KNEE-HRRP`)
+
+newdata$`Measure.Name_READM-30-HF-HRRP` <- as.factor(newdata$`Measure.Name_READM-30-HF-HRRP`)
+
+newdata$`Measure.Name_READM-30-CABG-HRRP` <- as.factor(newdata$`Measure.Name_READM-30-CABG-HRRP`)
+
+  
+
+# adding an id column to detrmine where to split data.
+ 
+newdata <- newdata %>%
+  mutate(id = row_number())
+  
+
+# detrmining the training data size at 50% and the other 50% as the tesing data
+ 
+training_set_size <- 0.5
+
+training_data <- newdata %>%
+  slice_sample(prop = training_set_size)
+
+testing_data <- newdata %>%
+  anti_join(training_data, by = "id")
+
+  
+
+# linear regression model
+# here is the link: https://www.scribbr.com/statistics/linear-regression-in-r/
+ 
+model_a <- lm(
+  formula = newdata$Number.of.Readmissions ~ newdata$`Measure.Name_READM-30-CABG-HRRP`+ newdata$`Measure.Name_READM-30-AMI-HRRP`+ newdata$`Measure.Name_READM-30-HF-HRRP`+ newdata$`Measure.Name_READM-30-COPD-HRRP`+ newdata$`Measure.Name_READM-30-HIP-KNEE-HRRP`+ newdata$`Measure.Name_READM-30-PN-HRRP`,
+  data = training_data
+)
+summary(model_a)
+  
+
+
+#testing for homoscedasticity, basically testing whether our data meets our model assumptions.
+ 
+par(mfrow=c(2,2)) #divides the plots window into 2 rows and 2 columns.
+plot(lm(newdata$Number.of.Readmissions ~ newdata$`Measure.Name_READM-30-CABG-HRRP`+ newdata$`Measure.Name_READM-30-AMI-HRRP`+ newdata$`Measure.Name_READM-30-HF-HRRP`+ newdata$`Measure.Name_READM-30-COPD-HRRP`+ newdata$`Measure.Name_READM-30-HIP-KNEE-HRRP`+ newdata$`Measure.Name_READM-30-PN-HRRP`, data= newdata))
+par(mfrow=c(1,1)) 
+  
+# the red lines represent the mean of the residuals. When the red line is horizontal and is centered around zero, this mean that there are no outliers or biases in the data that would make this linear regression invalid. However, in our case, the residuals are not centered around the red line, which means that there are many outliers in our data.
+
+ 
+library(lmtest,pos=4)
+
+bptest(newdata$Number.of.Readmissions ~ newdata$`Measure.Name_READM-30-CABG-HRRP`+ newdata$`Measure.Name_READM-30-AMI-HRRP`+ newdata$`Measure.Name_READM-30-HF-HRRP`+ newdata$`Measure.Name_READM-30-COPD-HRRP`+ newdata$`Measure.Name_READM-30-HIP-KNEE-HRRP`+ newdata$`Measure.Name_READM-30-PN-HRRP`, data= newdata, varformula= ~ fitted.values(model_a), studentize=TRUE)
+  
+
+#Ho: the random errors have constant variance
+#Ha: the random errors do not have constant variance
+#p-value = 2.2*10^-16 
+#conclusion(at the 0.05 level): Reject Ho in favor for Ha. There is sufficient evidence to conclude that the random errors do not have constant variance. This means that our model is not fit for a linear regression, but we will go ahead and train and split the data anyway because this is all we have.
+
+
+# training our model
+ 
+mA_training_predictions <- predict(
+  model_a,
+  data = training_data)
+
+mA_training_MSE <- mean(
+  (training_data$Number.of.Readmissions - mA_training_predictions)^2
+)
+
+mA_training_MSE
+
+sqrt(mA_training_MSE)
+  
+
+
+
+#Testing our model
+ 
+mA_testing_predictions <- predict(
+  model_a,
+  data = testing_data
+)
+# Computing the mean squared error
+mA_testing_MSE <- mean(
+  (testing_data$Number.of.Readmissions - mA_testing_predictions)^2
+)
+mA_testing_MSE
+
+sqrt(mA_testing_MSE)
+  
+
+
+
+# Regression tree analysis and visualizing it
+ 
+model_b <- rpart(
+  formula = newdata$Number.of.Readmissions ~ newdata$`Measure.Name_READM-30-CABG-HRRP`+ newdata$`Measure.Name_READM-30-AMI-HRRP`+ newdata$`Measure.Name_READM-30-HF-HRRP`+ newdata$`Measure.Name_READM-30-COPD-HRRP`+ newdata$`Measure.Name_READM-30-HIP-KNEE-HRRP`+ newdata$`Measure.Name_READM-30-PN-HRRP`,
+  data = training_data,
+  parms = list(split="information")
+)
+summary(model_b)
+
+rpart.plot(model_b)
+  
+
+
+# training our model
+ 
+mB_training_predictions <- predict(
+  model_b,
+  data = training_data
+)
+
+# Compute the mean squared error
+mB_training_MSE <- mean(
+  (training_data$Number.of.Readmissions - mB_training_predictions)^2
+)
+mB_training_MSE
+  
+ 
+sqrt(mB_training_MSE)
+  
+
+
+# testing our model
+ 
+mB_testing_predictions <- predict(
+  model_b,
+  data = testing_data
+)
+# Computing the mean squared error
+mB_testing_MSE <- mean(
+  (testing_data$Number.of.Readmissions - mB_testing_predictions)^2
+)
+mB_testing_MSE
+
+sqrt(mB_testing_MSE)
+  
+
